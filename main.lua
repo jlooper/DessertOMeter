@@ -1,10 +1,12 @@
 local json = require("json")
 local mime = require("mime")
-local commands_json,signInText,usernameText,passwordText,emailText,usernameTxtBox,passwordTxtBox,emailTxtBox,doneButton,pickerWheel,msg,title
+local commands_json,signInText,usernameText,passwordText,emailText,usernameTxtBox,passwordTxtBox,emailTxtBox,doneButton,pickerWheel,msg,title,takePicButton,uploadButton,saveButton
 local widget = require( "widget" )
+
 
 APPID = 'my_key'
 RESTAPIKEY = 'my_rest_key'
+
 
 local function displayFeatured(dessert,friendsNum)
 
@@ -23,11 +25,99 @@ local function displayFeatured(dessert,friendsNum)
     emailTxtBox:removeSelf()
     emailTxtBox = nil
     
-    local cupcakeText = display.newText("Welcome to the Dessert-O-Meter!\nThe cupcake of the day is "..dessert..". Guess what, "..friendsNum.." other members like "..dessert.." too!", 10, 350, 300, 400, "GillSans", 20 )
-    
+    local cupcakeText = display.newText("Welcome to the Dessert-O-Meter!\nThe cupcake of the day is "..dessert..". Guess what, "..friendsNum.." other members like "..dessert.." too!", 10, 310, 300, 400, "GillSans", 20 )
     local cupcakeImage = display.newImage( "images/"..dessert..".png" )
     cupcakeImage.x = display.contentWidth/2
-    cupcakeImage.y = 200
+    cupcakeImage.y = 160
+   
+
+    local onComplete = function(event)
+    local photo = event.target
+
+    local photoGroup = display.newGroup()  
+    photoGroup:insert(photo)
+
+    local tmpDirectory = system.TemporaryDirectory
+    display.save(photoGroup, "photo.jpg", tmpDirectory) 
+
+        --clear
+        cupcakeImage:removeSelf()
+        cupcakeImage = nil
+        cupcakeText:removeSelf()
+        cupcakeText = nil
+        saveButton:removeSelf()
+        saveButton = nil
+        takePicButton:removeSelf()
+        takePicButton = nil
+
+
+        photo.x = display.contentWidth/2
+        photo.y = display.contentWidth/2
+
+        local function onUploadButtonRelease(event)
+            --upload the pic
+            local function callbackFunction(event)
+                if event.phase == "ended" then
+                    local response = event.response
+                    print(response)
+                    print(event.status)
+                    if event.status == 201 then
+                        --alert thanks
+                        local alert = native.showAlert( "Thanks!", "Your picture will be added to our gallery!", {"OK"}, onComplete )
+
+                    end
+                end
+            end
+
+        headers = {}
+        headers["X-Parse-Application-Id"] = APPID
+        headers["X-Parse-REST-API-Key"] = RESTAPIKEY
+        headers["Content-Type"] = "image/jpeg"
+
+        local params = {}
+        params.headers = headers
+        params.bodyType = "binary"
+
+        network.upload("https://api.parse.com/1/files/photo.jpg","POST",callbackFunction,params,"photo.jpg",system.TemporaryDirectory,"image/jpeg")
+
+    end
+
+        --add a button to allow upload
+        uploadButton = widget.newButton
+        {
+            label = "Upload your photo",
+            id = "btnPhoto",
+            width=200,
+            height=20,
+            onRelease = onUploadButtonRelease,
+            font = "GillSans"
+
+        }
+        uploadButton.x = display.contentWidth/2
+        uploadButton.y = 300
+
+
+
+    end
+
+    local onTakePicButtonRelease = function(event)
+        media.show( media.Camera, onComplete )
+    end
+
+    takePicButton = widget.newButton
+        {
+            label = "Take a picture of your favorite dessert!",
+            id = "btnPic",
+            width=display.contentWidth,
+            height=20,
+            onRelease = onTakePicButtonRelease,
+            font = "GillSans"
+
+        }
+        takePicButton.x = display.contentWidth/2
+        takePicButton.y = 450
+
+
 
 end
 
@@ -38,8 +128,6 @@ local function init()
     bg:setFillColor(155, 89, 182)--amethyst
     bg.strokeWidth=10
     bg:setStrokeColor(142, 68, 173)--wysteria
-
-    
 
     --create login
     signInText = display.newText("Register for the Dessert-O-Meter!", 30, 20, 300, 400, "GillSans", 20 )
@@ -264,7 +352,7 @@ local function init()
     end
   
  
-     local saveButton = widget.newButton
+     saveButton = widget.newButton
         {
             label = "Save",
             id = "btnSave",
