@@ -1,11 +1,13 @@
+local launchArgs = ...
+
 local json = require("json")
 local mime = require("mime")
 local commands_json,signInText,usernameText,passwordText,emailText,usernameTxtBox,passwordTxtBox,emailTxtBox,doneButton,pickerWheel,msg,title,takePicButton,uploadButton,saveButton
 local widget = require( "widget" )
 
 
-APPID = 'my_key'
-RESTAPIKEY = 'my_rest_key'
+APPID = 'my_appid'
+RESTAPIKEY = 'my_key'
 
 
 local function displayFeatured(dessert,friendsNum)
@@ -130,21 +132,29 @@ local function init()
     bg:setStrokeColor(142, 68, 173)--wysteria
 
     --create login
+
+    local function onReturn( event )
+    -- Hide keyboard when the user clicks "Return" in this field
+        if ( "submitted" == event.phase ) then
+            native.setKeyboardFocus( nil )
+        end
+    end
+
     signInText = display.newText("Register for the Dessert-O-Meter!", 30, 20, 300, 400, "GillSans", 20 )
     
-    usernameText = display.newText("Username:", 60, 50, 300, 400, "GillSans", 20 )
+    usernameText = display.newText("Username:", 60, 50, 300, 400, "GillSans", 20)
     
-    usernameTxtBox = native.newTextField( display.contentWidth/2-100, 80, 200, 20)
+    usernameTxtBox = native.newTextField( display.contentWidth/2-100, 80, 200, 20, onReturn)
     
-    passwordText = display.newText("Password:", 60, 100, 300, 400, "GillSans", 20 )
+    passwordText = display.newText("Password:", 60, 100, 300, 400, "GillSans", 20)
     
-    passwordTxtBox = native.newTextField( display.contentWidth/2-100, 130, 200, 20)
+    passwordTxtBox = native.newTextField( display.contentWidth/2-100, 130, 200, 20, onReturn)
     
     passwordTxtBox.isSecure=true
     
     emailText = display.newText("Email:", 60, 150, 300, 400, "GillSans", 20 )
     
-    emailTxtBox = native.newTextField( display.contentWidth/2-100, 180, 200, 20)
+    emailTxtBox = native.newTextField( display.contentWidth/2-100, 180, 200, 20, onReturn)
     
     
 
@@ -271,6 +281,9 @@ local function init()
                 print(response)
                 local t = json.decode(response)
                 
+                print("this user's fave is "..flavorIndex)
+                registerParseDevice(deviceToken,flavorIndex)
+                --pass this over to Parse as a channel and while you're at it, do the installation
 
                 if t.error ~= nil then
                     title = "Oops!"
@@ -347,6 +360,8 @@ local function init()
                 params.headers = headers
                 params.body = postData
 
+
+
         network.request( "https://api.parse.com/1/users","POST",registerNewUser,params)   
 
     end
@@ -369,9 +384,62 @@ local function init()
         
     end 
 
+function registerParseDevice(deviceToken,flavorIndex)
+   
+      local function parseNetworkListener(event)
+        print(event.response)
+      end
+
+        headers = {}
+        headers["X-Parse-Application-Id"] = APPID
+        headers["X-Parse-REST-API-Key"] = RESTAPIKEY
+        headers["Content-Type"] = "application/json"
+ 
+        commands_json =
+            {
+             ["deviceType"] = "ios",
+             ["deviceToken"] = deviceToken,
+             ["channels"] = {flavorIndex}            
+            }        
+ 
+        postData = json.encode(commands_json)
+        
+        data = ""
+        local params = {}
+        params.headers = headers
+        params.body = postData
+        network.request( "https://api.parse.com/1/installations" ,"POST", parseNetworkListener,  params)
+end
+
+local function onNotification( event )
+
+   print("my device id is",event.token)
+    
+    if event.type == "remoteRegistration" then
+        
+        if event.token ~= nil then
+
+            --save the deviceToken as a global so we can grab it later
+            deviceToken = event.token
+            
+        else
+            print("no token returned, too bad")
+        end
+        
+    elseif event.type == "remote" then
+        native.showAlert( "Dessert-O-Meter", event.alert , { "OK" } )
+   end
+
+end
+
+local notificationListener = function( event )
+   native.setProperty( "applicationIconBadgeNumber", 0 )
+end
+
+
+Runtime:addEventListener( "notification", onNotification )
+
 init()
-
-
 
 
 
